@@ -1,13 +1,13 @@
 import { Controller, Logger } from '@nestjs/common';
+import {
+  Ctx,
+  EventPattern,
+  MessagePattern,
+  Payload,
+  RmqContext,
+} from '@nestjs/microservices';
 import { DesafiosService } from './desafios.service';
 import { Desafio } from './interfaces/desafio.interface';
-import {
-  EventPattern,
-  Payload,
-  Ctx,
-  RmqContext,
-  MessagePattern,
-} from '@nestjs/microservices';
 
 const ackErrors: string[] = ['E11000'];
 
@@ -58,6 +58,32 @@ export class DesafiosController {
         return await this.desafiosService.consultarDesafioPeloId(_id);
       } else {
         return await this.desafiosService.consultarTodosDesafios();
+      }
+    } finally {
+      await channel.ack(originalMsg);
+    }
+  }
+
+  @MessagePattern('consultar-desafios-realizados')
+  async consultarDesafiosRealizados(
+    @Payload() payload: any,
+    @Ctx() context: RmqContext,
+  ): Promise<Desafio[] | Desafio> {
+    const channel = context.getChannelRef();
+    const originalMsg = context.getMessage();
+    try {
+      const { idCategoria, dataRef } = payload;
+      this.logger.log(`data: ${JSON.stringify(payload)}`);
+
+      if (dataRef) {
+        return await this.desafiosService.consultarDesafiosRealizadosPelaData(
+          idCategoria,
+          dataRef,
+        );
+      } else {
+        return await this.desafiosService.consultarDesafiosRealizados(
+          idCategoria,
+        );
       }
     } finally {
       await channel.ack(originalMsg);
